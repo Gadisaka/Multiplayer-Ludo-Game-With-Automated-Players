@@ -26,10 +26,16 @@ export const GameProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [currentRoomId, setCurrentRoomId] = useState(null);
   // New timer system
-  const [turnTimeLeft, setTurnTimeLeft] = useState(30);
+  const [turnTimeLeft, setTurnTimeLeft] = useState(90);
   const [isMyTurn, setIsMyTurn] = useState(false);
   const timerRef = useRef(null);
   const [showTimer, setShowTimer] = useState(false);
+  const [gameState, setGameState] = useState({
+    pieces: {
+      green: ["gh1", "gh2", "gh3", "gh4"],
+      blue: ["bh1", "bh2", "bh3", "bh4"],
+    },
+  });
 
   // Debug: Log when gameSettings changes
   useEffect(() => {
@@ -51,7 +57,7 @@ export const GameProvider = ({ children }) => {
       timerRef.current = null;
     }
     setShowTimer(false);
-    setTurnTimeLeft(30);
+    setTurnTimeLeft(90);
   };
 
   // Reset timer (when player rolls dice)
@@ -60,8 +66,8 @@ export const GameProvider = ({ children }) => {
       `[NEW_TIMER] Resetting timer - isMyTurn: ${isMyTurn}, gameStatus: ${gameStatus}, showTimer: ${showTimer}`
     );
     if (isMyTurn && gameStatus === "playing" && showTimer) {
-      console.log(`[NEW_TIMER] Resetting timer to 30 seconds after dice roll`);
-      setTurnTimeLeft(30);
+      console.log(`[NEW_TIMER] Resetting timer to 90 seconds after dice roll`);
+      setTurnTimeLeft(90);
     }
   };
 
@@ -88,7 +94,7 @@ export const GameProvider = ({ children }) => {
         }
 
         setShowTimer(true);
-        setTurnTimeLeft(30);
+        setTurnTimeLeft(90);
 
         timerRef.current = setInterval(() => {
           setTurnTimeLeft((prev) => {
@@ -135,8 +141,12 @@ export const GameProvider = ({ children }) => {
   useEffect(() => {
     const handleConnect = () => {
       setIsConnected(true);
+      console.log(`[GameContext] Socket connected with ID: ${socket.id}`);
       // If we have a room ID and username, try to reconnect
       if (currentRoomId && username) {
+        console.log(
+          `[GameContext] Attempting to reconnect to room ${currentRoomId} as ${username}`
+        );
         socket.emit("reconnect_to_room", {
           roomId: currentRoomId,
           playerName: username,
@@ -183,6 +193,10 @@ export const GameProvider = ({ children }) => {
       if (data.currentTurn) setCurrentTurn(data.currentTurn);
       if (data.gameStatus) setGameStatus(data.gameStatus);
       if (data.lastRoll) setLastRoll(data.lastRoll);
+      if (data.gameState) {
+        console.log("Context: Setting game state to:", data.gameState);
+        setGameState(data.gameState);
+      }
     });
 
     socket.on("room_created", (data) => {
@@ -230,6 +244,8 @@ export const GameProvider = ({ children }) => {
     isMyTurn,
     showTimer,
     resetTurnTimer,
+    gameState,
+    setGameState,
   };
 
   return (

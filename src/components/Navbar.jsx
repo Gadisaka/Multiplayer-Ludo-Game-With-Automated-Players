@@ -1,10 +1,12 @@
 import React, { useEffect } from "react";
 import { Link, NavLink } from "react-router-dom";
 import useUserStore from "../store/zutstand";
+import useWalletStore from "../store/walletStore";
 import img from "../assets/ludoimage.png";
 import { Home, Bell, Clock, User } from "lucide-react";
 const Navbar = () => {
   const avatar = useUserStore((state) => state.avatar);
+  const unreadCount = useWalletStore((state) => state.unreadCount);
 
   // Zustand store to manage user data
 
@@ -28,15 +30,22 @@ const Navbar = () => {
             />
           )}
         </NavLink>
-        <NavLink className="" to="/notification">
+        <NavLink className="relative" to="/notification">
           {({ isActive }) => (
-            <Bell
-              size={isActive ? 32 : 30}
-              className={`transition-transform duration-200 ${
-                isActive ? "scale-125" : "scale-100"
-              } active:scale-90`}
-              color={isActive ? "#22c55e" : "#fff"}
-            />
+            <div className="relative">
+              <Bell
+                size={isActive ? 32 : 30}
+                className={`transition-transform duration-200 ${
+                  isActive ? "scale-125" : "scale-100"
+                } active:scale-90`}
+                color={isActive ? "#22c55e" : "#fff"}
+              />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                  {unreadCount > 10 ? "10+" : unreadCount}
+                </span>
+              )}
+            </div>
           )}
         </NavLink>
         <NavLink

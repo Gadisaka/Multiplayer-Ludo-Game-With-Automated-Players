@@ -18,12 +18,15 @@ const LudoBoard = ({ roomId }) => {
     value: diceValue,
     isRolling,
     lastRoll,
+    gameState: contextGameState,
+    setGameState: setContextGameState,
   } = useGame();
   const setCurrentPlayerColor = useUserStore(
     (state) => state.setCurrentPlayerColor
   );
   const { ads, fetchAds } = useAdsStore();
-  const [gameState, setGameState] = useState({
+  // Use context gameState as the primary source, with local state as fallback
+  const [localGameState, setLocalGameState] = useState({
     pieces: {
       // red: ["rh1", "rh2", "rh3", "rh4"],
       green: ["gh1", "gh2", "gh3", "gh4"],
@@ -31,6 +34,16 @@ const LudoBoard = ({ roomId }) => {
       // yellow: ["yh1", "yh2", "yh3", "yh4"],
     },
   });
+
+  // Use context gameState if available, otherwise use local state
+  const gameState =
+    contextGameState && contextGameState.pieces
+      ? contextGameState
+      : localGameState;
+  const setGameState =
+    contextGameState && contextGameState.pieces
+      ? setContextGameState
+      : setLocalGameState;
   const [, setError] = useState(null);
   const [newPath, setNewPath] = useState(null);
   const [step, setStep] = useState(null);
@@ -54,6 +67,17 @@ const LudoBoard = ({ roomId }) => {
   setCurrentPlayerColor(playerColor);
 
   const navigate = useNavigate();
+
+  // Sync local gameState with context gameState
+  useEffect(() => {
+    if (contextGameState && contextGameState.pieces) {
+      console.log(
+        "[LudoBoard] Syncing with context gameState:",
+        contextGameState
+      );
+      setLocalGameState(contextGameState);
+    }
+  }, [contextGameState, setGameState]);
 
   // Helper to get the color of the current turn
   const currentTurnColor = players.find((p) => p.id === currentTurn)?.color;

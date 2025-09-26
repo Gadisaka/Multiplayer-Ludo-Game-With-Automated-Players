@@ -10,7 +10,8 @@ import { crown } from "./Dies";
 import coin from "../assets/coin.png";
 import { useParams, useNavigate } from "react-router-dom";
 import { API_URL } from "../../constants";
-// import useUserStore from "../store/zutstand";
+import useUserStore from "../store/zutstand";
+import useAuthStore from "../store/authStore";
 
 const PlayingPage = () => {
   const { gameID: roomId } = useParams();
@@ -18,7 +19,7 @@ const PlayingPage = () => {
   // Timer state
   const [waitingTime, setWaitingTime] = useState(0);
   const timerRef = useRef(null);
-  const MAX_WAITING_TIME = 35; // Maximum waiting time in seconds (1 minute)
+  const MAX_WAITING_TIME = 50; // Maximum waiting time in seconds (1 minute)
 
   // Leave countdown state
   const [showLeaveCountdown, setShowLeaveCountdown] = useState(false);
@@ -30,6 +31,13 @@ const PlayingPage = () => {
 
   // Refreshing state
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Recovery state
+  const [recoveryAttempts, setRecoveryAttempts] = useState(0);
+  const [showRecoveryMessage, setShowRecoveryMessage] = useState(false);
+
+  // Game finished state
+  const [showGameFinished, setShowGameFinished] = useState(false);
 
   const {
     value,
@@ -43,10 +51,38 @@ const PlayingPage = () => {
     turnTimeLeft,
     isMyTurn,
     showTimer,
+    setCurrentRoomId,
   } = useGame();
 
   // Ads store
   const { ads, fetchAds } = useAdsStore();
+
+  // User store
+  const usernameFromUserStore = useUserStore((state) => state.username);
+
+  // Auth store
+  const { user } = useAuthStore();
+
+  // Get username from multiple sources as fallback
+  const getUsername = () => {
+    if (usernameFromUserStore) return usernameFromUserStore;
+    if (user?.username) return user.username;
+
+    // Try to get from localStorage as last resort
+    try {
+      const persisted = localStorage.getItem("auth-storage");
+      if (persisted) {
+        const parsed = JSON.parse(persisted);
+        return parsed?.state?.user?.username || "";
+      }
+    } catch (error) {
+      console.error("Error parsing auth storage:", error);
+    }
+
+    return "";
+  };
+
+  const username = getUsername();
 
   // Calculate winnings (2 * stake - cut percentage)
   const calculateWinnings = (stake, cutPercentage = 10) => {
@@ -84,7 +120,16 @@ const PlayingPage = () => {
     console.log("🎮 PlayingPage - gameStatus changed:", gameStatus);
     console.log("🎮 PlayingPage - players:", players);
     console.log("🎮 PlayingPage - currentTurn:", currentTurn);
-  }, [gameStatus, players, currentTurn]);
+
+    // Redirect to lobby if game is finished
+    if (gameStatus === "finished") {
+      console.log("🎮 Game finished, redirecting to lobby...");
+      setShowGameFinished(true);
+      setTimeout(() => {
+        navigate("/game");
+      }, 5000); // Give user 5 seconds to see the result
+    }
+  }, [gameStatus, players, currentTurn, navigate]);
 
   // Fetch ads on component mount
   useEffect(() => {
@@ -99,13 +144,16 @@ const PlayingPage = () => {
   // Fetch latest game data when component mounts
   useEffect(() => {
     if (roomId) {
+      // Set current room ID in context for reconnection
+      setCurrentRoomId(roomId);
+
       // Emit socket event to get fresh game data
       socket.emit("getGameData", { gameId: roomId });
       console.log("Requesting fresh game data for room:", roomId);
     }
     // Fetch cut percentage
     fetchCutPercentage();
-  }, [roomId]);
+  }, [roomId, setCurrentRoomId]);
 
   // Timer effect: start when waiting, stop/reset otherwise
   useEffect(() => {
@@ -206,7 +254,7 @@ const PlayingPage = () => {
     };
   }, []);
 
-  // Socket event listeners for leave room responses
+  // Socket event listeners for leave room responses and reconnection
   useEffect(() => {
     const handleRoomDeleted = (data) => {
       console.log("Room deleted:", data);
@@ -223,18 +271,113 @@ const PlayingPage = () => {
       // Handle other player leaving (not applicable for current user)
     };
 
+    const handlePlayerReconnected = (data) => {
+      console.log("Player reconnected event received:", data);
+      // Refresh game data when any player reconnects
+      socket.emit("getGameData", { gameId: roomId });
+    };
+
+    const handleGameData = (data) => {
+      console.log("Fresh game data received in PlayingPage:", data);
+      // Reset recovery attempts when fresh game data is received
+      setRecoveryAttempts(0);
+      setShowRecoveryMessage(false);
+      // This will be handled by the GameContext, but we can add additional logic here if needed
+    };
+
+    const handleReconnectSuccess = (data) => {
+      console.log("Reconnection successful:", data);
+      setShowRecoveryMessage(false);
+      setRecoveryAttempts(0);
+      // Reset recovery attempts on successful reconnection
+    };
+
+    const handleErrorMessage = (message) => {
+      console.log("Error message received:", message);
+      console.log("Current game state:", {
+        currentTurn,
+        socketId: socket.id,
+        players,
+        gameStatus,
+        username,
+        isMyTurn,
+        socketConnected: socket.connected,
+      });
+
+      // If we get "Not your turn" error, try to recover
+      if (message === "Not your turn!" && recoveryAttempts < 3) {
+        console.log(
+          `Attempting recovery for "Not your turn" error (attempt ${
+            recoveryAttempts + 1
+          })`
+        );
+        console.log("Recovery details:", {
+          roomId,
+          username,
+          currentTurn,
+          socketId: socket.id,
+          socketConnected: socket.connected,
+        });
+
+        setRecoveryAttempts((prev) => prev + 1);
+        setShowRecoveryMessage(true);
+
+        // Try to reconnect and refresh game data
+        setTimeout(() => {
+          console.log("Sending reconnect_to_room with:", {
+            roomId: roomId,
+            playerName: username || "unknown",
+          });
+
+          // First ensure socket is connected
+          if (!socket.connected) {
+            console.log("Socket not connected, attempting to connect...");
+            socket.connect();
+          }
+
+          socket.emit("reconnect_to_room", {
+            roomId: roomId,
+            playerName: username || "unknown",
+          });
+          socket.emit("getGameData", { gameId: roomId });
+        }, 1000);
+
+        // Hide recovery message after 5 seconds
+        setTimeout(() => {
+          setShowRecoveryMessage(false);
+        }, 5000);
+      }
+    };
+
     // Add event listeners
     socket.on("room_deleted", handleRoomDeleted);
     socket.on("left_room", handleLeftRoom);
     socket.on("player_left", handlePlayerLeft);
+    socket.on("player_reconnected", handlePlayerReconnected);
+    socket.on("gameData", handleGameData);
+    socket.on("error_message", handleErrorMessage);
+    socket.on("reconnect_success", handleReconnectSuccess);
 
     // Cleanup event listeners
     return () => {
       socket.off("room_deleted", handleRoomDeleted);
       socket.off("left_room", handleLeftRoom);
       socket.off("player_left", handlePlayerLeft);
+      socket.off("player_reconnected", handlePlayerReconnected);
+      socket.off("gameData", handleGameData);
+      socket.off("error_message", handleErrorMessage);
+      socket.off("reconnect_success", handleReconnectSuccess);
     };
-  }, [navigate]);
+  }, [
+    navigate,
+    roomId,
+    recoveryAttempts,
+    username,
+    currentTurn,
+    gameStatus,
+    isMyTurn,
+    players,
+  ]);
 
   // const [displayName, setDisplayName] = useState("");
   // {error && <p className="text-red-500 text-center">{error}</p>}
@@ -299,20 +442,55 @@ const PlayingPage = () => {
             </svg>
           </button>
 
-          {/* Refresh Game Settings Button */}
+          {/* Reload Game Button */}
           <button
-            className="rounded-full p-1 cursor-pointer transition-colors bg-blue-500 hover:bg-blue-600"
+            className="rounded-full p-1 cursor-pointer transition-colors bg-yellow-500 hover:bg-yellow-600"
             onClick={() => {
-              setIsRefreshing(true);
-              socket.emit("getGameData", { gameId: roomId });
-              console.log("Manual refresh requested for room:", roomId);
+              console.log("Manual recovery triggered");
+              console.log("Current state:", {
+                roomId,
+                username,
+                currentTurn,
+                socketId: socket.id,
+                players,
+                socketConnected: socket.connected,
+                gameStatus,
+                isMyTurn,
+              });
 
-              // Hide the overlay after 2 seconds
+              // Show loading animation
+              setIsRefreshing(true);
+
+              // First ensure socket is connected
+              if (!socket.connected) {
+                console.log("Socket not connected, attempting to connect...");
+                socket.connect();
+                // Wait a bit for connection
+                setTimeout(() => {
+                  console.log("Socket connected, now sending reconnection...");
+                  socket.emit("reconnect_to_room", {
+                    roomId: roomId,
+                    playerName: username || "unknown",
+                  });
+                  socket.emit("getGameData", { gameId: roomId });
+                }, 1000);
+              } else {
+                console.log(
+                  "Socket already connected, sending reconnection..."
+                );
+                socket.emit("reconnect_to_room", {
+                  roomId: roomId,
+                  playerName: username || "unknown",
+                });
+                socket.emit("getGameData", { gameId: roomId });
+              }
+
+              // Hide loading animation after 3 seconds
               setTimeout(() => {
                 setIsRefreshing(false);
-              }, 2000);
+              }, 3000);
             }}
-            title="Refresh game settings"
+            title="Reload game and reconnect"
           >
             <svg
               width="20px"
@@ -408,7 +586,7 @@ const PlayingPage = () => {
               <div className="w-48 bg-gray-900/50 rounded-full h-3">
                 <div
                   className="bg-red-500 h-3 rounded-full transition-all duration-1000"
-                  style={{ width: `${(turnTimeLeft / 30) * 100}%` }}
+                  style={{ width: `${(turnTimeLeft / 90) * 100}%` }}
                 ></div>
               </div>
             </div>
@@ -437,12 +615,12 @@ const PlayingPage = () => {
         )}
       </div>
 
-      {/* Refreshing Game Overlay */}
+      {/* Reloading Game Overlay */}
       {isRefreshing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
           <div className="bg-gray-900/90 border border-gray-600 rounded-2xl p-8 text-center shadow-2xl backdrop-blur-md max-w-md mx-4">
             <div className="mb-6">
-              {/* Spinning refresh icon */}
+              {/* Spinning reload icon */}
               <div className="flex justify-center mb-4">
                 <svg
                   width="60px"
@@ -450,7 +628,7 @@ const PlayingPage = () => {
                   viewBox="0 0 24 24"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
-                  className="text-blue-500 animate-spin"
+                  className="text-yellow-500 animate-spin"
                 >
                   <path
                     stroke="currentColor"
@@ -462,12 +640,42 @@ const PlayingPage = () => {
                 </svg>
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">
-                Refreshing Game
+                Reloading Game
               </h2>
-              <p className="text-gray-300">Loading latest game data...</p>
+              <p className="text-gray-300">
+                Reconnecting and restoring game state...
+              </p>
             </div>
 
             {/* Loading dots animation */}
+            <div className="flex justify-center space-x-1">
+              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce"></div>
+              <div
+                className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce"
+                style={{ animationDelay: "0.1s" }}
+              ></div>
+              <div
+                className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce"
+                style={{ animationDelay: "0.2s" }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Game Finished Overlay */}
+      {showGameFinished && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
+          <div className="bg-gray-900/90 border border-gray-600 rounded-2xl p-8 text-center shadow-2xl backdrop-blur-md max-w-md mx-4">
+            <div className="mb-6">
+              <h2 className="text-3xl font-bold text-white mb-4">
+                Game Finished!
+              </h2>
+              <p className="text-gray-300 text-lg">
+                The game has ended. You will be redirected to the lobby in a few
+                seconds.
+              </p>
+            </div>
             <div className="flex justify-center space-x-1">
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
               <div
@@ -476,6 +684,33 @@ const PlayingPage = () => {
               ></div>
               <div
                 className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                style={{ animationDelay: "0.2s" }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recovery Message Overlay */}
+      {showRecoveryMessage && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9998]">
+          <div className="bg-yellow-800/90 border border-yellow-600 rounded-2xl p-6 text-center shadow-2xl backdrop-blur-md max-w-md mx-4">
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-yellow-200 mb-2">
+                Recovering Game State
+              </h2>
+              <p className="text-yellow-100">
+                Detected connection issue. Attempting to restore your turn...
+              </p>
+            </div>
+            <div className="flex justify-center space-x-1">
+              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce"></div>
+              <div
+                className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce"
+                style={{ animationDelay: "0.1s" }}
+              ></div>
+              <div
+                className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce"
                 style={{ animationDelay: "0.2s" }}
               ></div>
             </div>

@@ -50,6 +50,8 @@ const Withdraw = () => {
   ];
 
   const withdrawAmount = parseFloat(amount) || 0;
+  const MINIMUM_BALANCE = 20; // Users must maintain 20 ብር in their account
+  const withdrawableBalance = Math.max(0, balance - MINIMUM_BALANCE); // Maximum amount user can withdraw
 
   // Get minimum amount for selected method
   const getMinAmount = () => {
@@ -60,12 +62,13 @@ const Withdraw = () => {
 
   const minAmount = getMinAmount();
   const isAmountBelowMinimum = withdrawAmount > 0 && withdrawAmount < minAmount;
+  const isAmountExceedingWithdrawable = withdrawAmount > withdrawableBalance;
 
   const handleWithdraw = async () => {
     if (
       !selectedMethod ||
       !amount ||
-      withdrawAmount > balance ||
+      withdrawAmount > withdrawableBalance ||
       isAmountBelowMinimum
     )
       return;
@@ -116,6 +119,10 @@ const Withdraw = () => {
             <p className="text-3xl font-bold text-white">
               {loading ? "Loading..." : `${balance.toFixed(2)} ብር`}
             </p>
+            <p className="text-gray-400 text-sm mt-2">
+              Withdrawable:{" "}
+              {loading ? "Loading..." : `${withdrawableBalance.toFixed(2)} ብር`}
+            </p>
           </div>
         </div>
 
@@ -150,7 +157,7 @@ const Withdraw = () => {
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="w-full bg-gray-800 border border-gray-600 text-white placeholder-gray-400 text-2xl h-14 rounded-md px-4 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            max={balance}
+            max={withdrawableBalance}
             min={
               selectedMethod
                 ? withdrawMethods.find((m) => m.id === selectedMethod)
@@ -159,7 +166,7 @@ const Withdraw = () => {
             }
           />
           <div className="flex space-x-2 mt-2">
-            {[100, 500, 1000, balance].map((preset, index) => (
+            {[100, 500, 1000, withdrawableBalance].map((preset, index) => (
               <button
                 key={preset}
                 type="button"
@@ -254,12 +261,13 @@ const Withdraw = () => {
           </div>
         )}
         {/* Warning for insufficient funds */}
-        {withdrawAmount > balance && (
+        {isAmountExceedingWithdrawable && (
           <div className="bg-red-900/20 border border-red-700 rounded-xl p-6 mb-4">
             <div className="flex items-center space-x-3 text-red-400">
               <FaExclamationTriangle className="w-5 h-5" />
               <p className="text-sm">
-                Insufficient balance for this withdrawal amount.
+                You can only withdraw up to {withdrawableBalance.toFixed(2)} ብር.
+                You must maintain a minimum balance of 20 ብር in your account.
               </p>
             </div>
           </div>
@@ -284,7 +292,7 @@ const Withdraw = () => {
           disabled={
             !selectedMethod ||
             !amount ||
-            withdrawAmount > balance ||
+            withdrawAmount > withdrawableBalance ||
             isAmountBelowMinimum ||
             loading
           }
