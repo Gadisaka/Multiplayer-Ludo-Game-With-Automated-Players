@@ -8,6 +8,9 @@ const Navbar = () => {
   const avatar = useUserStore((state) => state.avatar);
   const unreadCount = useWalletStore((state) => state.unreadCount);
 
+  // Debug logging
+  console.log("Navbar unreadCount:", unreadCount);
+
   // Zustand store to manage user data
 
   useEffect(() => {

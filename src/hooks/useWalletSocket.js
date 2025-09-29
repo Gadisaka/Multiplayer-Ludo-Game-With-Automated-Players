@@ -3,19 +3,15 @@ import socket from "../socket.js";
 import useWalletStore from "../store/walletStore.js";
 
 const useWalletSocket = () => {
-  const { 
-    updateBalance, 
-    addNotification, 
-    getBalance, 
-    getNotifications 
-  } = useWalletStore();
+  const { updateBalance, addNotification, getBalance, getNotifications } =
+    useWalletStore();
 
   useEffect(() => {
     // Listen for wallet balance updates
     const handleWalletUpdate = (data) => {
       console.log("Wallet update received:", data);
       updateBalance(data.balance);
-      
+
       // Refresh balance and notifications
       getBalance();
       getNotifications();
@@ -27,9 +23,9 @@ const useWalletSocket = () => {
       addNotification({
         _id: data.notificationId,
         message: data.message,
-        type: "SUCCESS",
+        type: data.type || "SUCCESS",
         status: "UNREAD",
-        createdAt: new Date()
+        createdAt: new Date(),
       });
     };
 
@@ -47,14 +43,24 @@ const useWalletSocket = () => {
       return null;
     };
 
-    const user = getUser();
-    if (user?.id) {
-      // Listen for user-specific wallet updates
-      socket.on(`wallet_update_${user.id}`, handleWalletUpdate);
-      
-      // Listen for user-specific notifications
-      socket.on(`notification_${user.id}`, handleNewNotification);
-    }
+    // Set up socket listeners with a delay to ensure user data is available
+    const setupSocketListeners = () => {
+      const user = getUser();
+      console.log("Socket user:", user);
+      if (user?.id) {
+        console.log(`Setting up socket listeners for user: ${user.id}`);
+        // Listen for user-specific wallet updates
+        socket.on(`wallet_update_${user.id}`, handleWalletUpdate);
+
+        // Listen for user-specific notifications
+        socket.on(`notification_${user.id}`, handleNewNotification);
+      } else {
+        console.log("No user ID found, retrying in 1 second...");
+        setTimeout(setupSocketListeners, 1000);
+      }
+    };
+
+    setupSocketListeners();
 
     // Listen for general wallet events
     socket.on("wallet_balance", (data) => {
@@ -74,6 +80,7 @@ const useWalletSocket = () => {
 
     // Cleanup function
     return () => {
+      const user = getUser();
       if (user?.id) {
         socket.off(`wallet_update_${user.id}`, handleWalletUpdate);
         socket.off(`notification_${user.id}`, handleNewNotification);
@@ -114,7 +121,7 @@ const useWalletSocket = () => {
     requestTransactions,
     requestNotifications,
     markNotificationRead,
-    markAllNotificationsRead
+    markAllNotificationsRead,
   };
 };
 

@@ -32,10 +32,6 @@ const PlayingPage = () => {
   // Refreshing state
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Recovery state
-  const [recoveryAttempts, setRecoveryAttempts] = useState(0);
-  const [showRecoveryMessage, setShowRecoveryMessage] = useState(false);
-
   // Game finished state
   const [showGameFinished, setShowGameFinished] = useState(false);
 
@@ -279,17 +275,11 @@ const PlayingPage = () => {
 
     const handleGameData = (data) => {
       console.log("Fresh game data received in PlayingPage:", data);
-      // Reset recovery attempts when fresh game data is received
-      setRecoveryAttempts(0);
-      setShowRecoveryMessage(false);
       // This will be handled by the GameContext, but we can add additional logic here if needed
     };
 
     const handleReconnectSuccess = (data) => {
       console.log("Reconnection successful:", data);
-      setShowRecoveryMessage(false);
-      setRecoveryAttempts(0);
-      // Reset recovery attempts on successful reconnection
     };
 
     const handleErrorMessage = (message) => {
@@ -304,49 +294,8 @@ const PlayingPage = () => {
         socketConnected: socket.connected,
       });
 
-      // If we get "Not your turn" error, try to recover
-      if (message === "Not your turn!" && recoveryAttempts < 3) {
-        console.log(
-          `Attempting recovery for "Not your turn" error (attempt ${
-            recoveryAttempts + 1
-          })`
-        );
-        console.log("Recovery details:", {
-          roomId,
-          username,
-          currentTurn,
-          socketId: socket.id,
-          socketConnected: socket.connected,
-        });
-
-        setRecoveryAttempts((prev) => prev + 1);
-        setShowRecoveryMessage(true);
-
-        // Try to reconnect and refresh game data
-        setTimeout(() => {
-          console.log("Sending reconnect_to_room with:", {
-            roomId: roomId,
-            playerName: username || "unknown",
-          });
-
-          // First ensure socket is connected
-          if (!socket.connected) {
-            console.log("Socket not connected, attempting to connect...");
-            socket.connect();
-          }
-
-          socket.emit("reconnect_to_room", {
-            roomId: roomId,
-            playerName: username || "unknown",
-          });
-          socket.emit("getGameData", { gameId: roomId });
-        }, 1000);
-
-        // Hide recovery message after 5 seconds
-        setTimeout(() => {
-          setShowRecoveryMessage(false);
-        }, 5000);
-      }
+      // Log error but don't attempt automatic recovery
+      // Users can use the manual refresh button if needed
     };
 
     // Add event listeners
@@ -368,16 +317,7 @@ const PlayingPage = () => {
       socket.off("error_message", handleErrorMessage);
       socket.off("reconnect_success", handleReconnectSuccess);
     };
-  }, [
-    navigate,
-    roomId,
-    recoveryAttempts,
-    username,
-    currentTurn,
-    gameStatus,
-    isMyTurn,
-    players,
-  ]);
+  }, [navigate, roomId, username, currentTurn, gameStatus, isMyTurn, players]);
 
   // const [displayName, setDisplayName] = useState("");
   // {error && <p className="text-red-500 text-center">{error}</p>}
@@ -684,33 +624,6 @@ const PlayingPage = () => {
               ></div>
               <div
                 className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
-                style={{ animationDelay: "0.2s" }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Recovery Message Overlay */}
-      {showRecoveryMessage && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9998]">
-          <div className="bg-yellow-800/90 border border-yellow-600 rounded-2xl p-6 text-center shadow-2xl backdrop-blur-md max-w-md mx-4">
-            <div className="mb-4">
-              <h2 className="text-xl font-bold text-yellow-200 mb-2">
-                Recovering Game State
-              </h2>
-              <p className="text-yellow-100">
-                Detected connection issue. Attempting to restore your turn...
-              </p>
-            </div>
-            <div className="flex justify-center space-x-1">
-              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce"></div>
-              <div
-                className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce"
-                style={{ animationDelay: "0.1s" }}
-              ></div>
-              <div
-                className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce"
                 style={{ animationDelay: "0.2s" }}
               ></div>
             </div>

@@ -49,7 +49,7 @@ const GameLobby = () => {
   const [showDiceAnimation, setShowDiceAnimation] = useState(true);
   // const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
   const username = useUserStore((state) => state.username);
-  const { balance, getBalance } = useWalletStore();
+  const { balance, getBalance, getNotifications } = useWalletStore();
   const [showGameDetails, setShowGameDetails] = useState(false);
   const navigate = useNavigate();
 
@@ -64,10 +64,23 @@ const GameLobby = () => {
     }
   }, []);
 
-  // Fetch balance on component mount
+  // Fetch balance and notifications on component mount
   useEffect(() => {
     getBalance();
-  }, [getBalance]);
+    getNotifications();
+  }, [getBalance, getNotifications]);
+
+  // Set up periodic notification refresh
+  useEffect(() => {
+    const refreshNotifications = () => {
+      getNotifications();
+    };
+
+    // Refresh notifications every 30 seconds
+    const interval = setInterval(refreshNotifications, 30000);
+
+    return () => clearInterval(interval);
+  }, [getNotifications]);
 
   useEffect(() => {
     if (username) {
@@ -84,6 +97,8 @@ const GameLobby = () => {
       setIsConnecting(false);
       setError("");
       socket.emit("get_available_games");
+      // Fetch notifications when connected
+      getNotifications();
     };
 
     const handleDisconnect = (reason) => {
@@ -131,7 +146,7 @@ const GameLobby = () => {
       socket.off("available_games");
       socket.off("error_message");
     };
-  }, []);
+  }, [getNotifications]);
 
   const handleJoinGame = (roomId) => {
     if (!playerName.trim()) {
@@ -217,6 +232,8 @@ const GameLobby = () => {
               onClick={() => {
                 setShowDiceAnimation(true);
                 socket.emit("get_available_games");
+                // Also refresh notifications when reloading
+                getNotifications();
               }}
               disabled={!isConnected}
               title="Reload games with dice animation"

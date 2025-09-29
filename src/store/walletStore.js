@@ -274,10 +274,15 @@ const useWalletStore = create(
 
       // Add notification (for real-time updates)
       addNotification: (notification) => {
-        set((state) => ({
-          notifications: [notification, ...state.notifications],
-          unreadCount: state.unreadCount + 1,
-        }));
+        console.log("Adding notification to store:", notification);
+        set((state) => {
+          const newState = {
+            notifications: [notification, ...state.notifications],
+            unreadCount: state.unreadCount + 1,
+          };
+          console.log("Updated unreadCount:", newState.unreadCount);
+          return newState;
+        });
       },
 
       // Update balance (for real-time updates)
