@@ -15,6 +15,7 @@ export const GameProvider = ({ children }) => {
   const [isRolling, setIsRolling] = useState(false);
   const [players, setPlayers] = useState([]);
   const [currentTurn, setCurrentTurn] = useState(null);
+  const [currentTurnKey, setCurrentTurnKey] = useState(null);
   const [gameStatus, setGameStatus] = useState("waiting");
   const [lastRoll, setLastRoll] = useState(null);
   const [error, setError] = useState(null);
@@ -48,6 +49,55 @@ export const GameProvider = ({ children }) => {
     setGameSettings(newSettings);
   };
   const username = useUserStore((state) => state.username);
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  // Load current user id (stable identity) for turn checks
+  useEffect(() => {
+    try {
+      const persisted = localStorage.getItem("auth-storage");
+      if (persisted) {
+        const parsed = JSON.parse(persisted);
+        const uid = parsed?.state?.user?.id || parsed?.state?.user?._id || null;
+        setCurrentUserId(uid);
+        if (uid) localStorage.setItem("current-user-id", uid);
+        console.log(`[GameContext] Loaded userId from localStorage: ${uid}`);
+      }
+    } catch (e) {
+      console.log("load current-user-id failed", e);
+    }
+  }, []);
+
+  // Listen for socket user authentication to get the actual user ID
+  useEffect(() => {
+    const handleSocketUser = (user) => {
+      const uid = user?.id || user?._id || null;
+      if (uid && uid !== currentUserId) {
+        setCurrentUserId(uid);
+        try {
+          localStorage.setItem("current-user-id", uid);
+          console.log(`[GameContext] Updated userId from socket: ${uid}`);
+        } catch (e) {
+          console.log("persist current-user-id failed", e);
+        }
+      }
+    };
+
+    // Listen for socket user events (if the backend emits them)
+    socket.on("user_authenticated", handleSocketUser);
+
+    return () => {
+      socket.off("user_authenticated", handleSocketUser);
+    };
+  }, [currentUserId]);
+
+  // Persist identity for reconnect flow
+  useEffect(() => {
+    try {
+      if (username) localStorage.setItem("current-username", username);
+    } catch (e) {
+      console.log("persist username failed", e);
+    }
+  }, [username]);
 
   // Stop timer
   const stopTimer = () => {
@@ -71,12 +121,14 @@ export const GameProvider = ({ children }) => {
     }
   };
 
-  // Handle turn changes
+  // Handle turn changes (use stable currentTurnKey when available)
   useEffect(() => {
-    if (currentTurn) {
-      const isMyTurnNow = socket.id === currentTurn;
+    if (currentTurn || currentTurnKey) {
+      const isMyTurnNow = currentTurnKey
+        ? currentUserId && currentTurnKey === currentUserId
+        : socket.id === currentTurn;
       console.log(
-        `[NEW_TIMER] Turn changed - isMyTurnNow: ${isMyTurnNow}, currentTurn: ${currentTurn}`
+        `[NEW_TIMER] Turn changed - isMyTurnNow: ${isMyTurnNow}, currentTurn: ${currentTurn}, currentTurnKey: ${currentTurnKey}, currentUserId: ${currentUserId}, socketId: ${socket.id}`
       );
 
       setIsMyTurn(isMyTurnNow);
@@ -112,7 +164,7 @@ export const GameProvider = ({ children }) => {
         stopTimer();
       }
     }
-  }, [currentTurn, gameStatus]);
+  }, [currentTurn, currentTurnKey, currentUserId, gameStatus]);
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -126,7 +178,12 @@ export const GameProvider = ({ children }) => {
   const rollDice = (roomId, socket) => {
     if (!roomId) return setError("You must be in a room to roll!");
     if (isRolling) return;
-    if (socket.id !== currentTurn) return setError("Not your turn!");
+    if (currentTurnKey) {
+      if (!currentUserId || currentUserId !== currentTurnKey)
+        return setError("Not your turn!");
+    } else {
+      if (socket.id !== currentTurn) return setError("Not your turn!");
+    }
     if (gameStatus !== "playing") return setError("Game hasn't started yet!");
 
     setIsRolling(true);
@@ -151,6 +208,7 @@ export const GameProvider = ({ children }) => {
           roomId: currentRoomId,
           playerName: username,
         });
+        socket.emit("sync_state", { roomId: currentRoomId });
       }
     };
 
@@ -172,6 +230,12 @@ export const GameProvider = ({ children }) => {
       console.log("Room update received:", data);
       setPlayers(data.players);
       setCurrentTurn(data.currentTurn);
+      if (data.currentTurnKey) {
+        setCurrentTurnKey(data.currentTurnKey);
+        console.log(
+          `[GameContext] Received currentTurnKey: ${data.currentTurnKey}, currentUserId: ${currentUserId}`
+        );
+      }
       setGameStatus(data.gameStatus);
       if (data.gameSettings) {
         console.log("Updating game settings:", data.gameSettings);
@@ -191,6 +255,7 @@ export const GameProvider = ({ children }) => {
       }
       if (data.players) setPlayers(data.players);
       if (data.currentTurn) setCurrentTurn(data.currentTurn);
+      if (data.currentTurnKey) setCurrentTurnKey(data.currentTurnKey);
       if (data.gameStatus) setGameStatus(data.gameStatus);
       if (data.lastRoll) setLastRoll(data.lastRoll);
       if (data.gameState) {
@@ -199,10 +264,32 @@ export const GameProvider = ({ children }) => {
       }
     });
 
+    // Apply sync_state without mutating server turn
+    socket.on("sync_state", (data) => {
+      console.log("Sync state received:", data);
+      if (data.players) setPlayers(data.players);
+      if (data.currentTurn) setCurrentTurn(data.currentTurn);
+      if (data.currentTurnKey) {
+        setCurrentTurnKey(data.currentTurnKey);
+        console.log(
+          `[GameContext] Sync received currentTurnKey: ${data.currentTurnKey}, currentUserId: ${currentUserId}`
+        );
+      }
+      if (data.gameStatus) setGameStatus(data.gameStatus);
+      if (data.lastRoll) setLastRoll(data.lastRoll);
+      if (data.gameSettings) setGameSettings(data.gameSettings);
+      if (data.gameState) setGameState(data.gameState);
+    });
+
     socket.on("room_created", (data) => {
       console.log("Room created data received:", data);
       setCurrentRoomId(data.roomId);
       setGameSettings(data.gameSettings);
+      try {
+        localStorage.setItem("current-room-id", data.roomId);
+      } catch (e) {
+        console.log("persist room id failed", e);
+      }
     });
 
     socket.on("player_reconnected", (data) => {
@@ -212,8 +299,39 @@ export const GameProvider = ({ children }) => {
     return () => {
       socket.off("room_update");
       socket.off("gameData");
+      socket.off("sync_state");
       socket.off("room_created");
       socket.off("player_reconnected");
+    };
+  }, [currentUserId]);
+
+  // Add this effect to reset game state when game status changes to "playing"
+  useEffect(() => {
+    if (gameStatus === "playing") {
+      // Reset game state to initial positions when game starts
+      console.log(
+        "[GameContext] Game started, resetting game state to initial positions"
+      );
+      setGameState({
+        pieces: {
+          green: ["gh1", "gh2", "gh3", "gh4"],
+          blue: ["bh1", "bh2", "bh3", "bh4"],
+        },
+      });
+    }
+  }, [gameStatus]);
+
+  // Also listen for game state reset events from backend
+  useEffect(() => {
+    socket.on("game_state_reset", (data) => {
+      console.log("[GameContext] Received game state reset from server:", data);
+      if (data.gameState) {
+        setGameState(data.gameState);
+      }
+    });
+
+    return () => {
+      socket.off("game_state_reset");
     };
   }, []);
 

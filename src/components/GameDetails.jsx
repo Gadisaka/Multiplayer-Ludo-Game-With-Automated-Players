@@ -4,6 +4,7 @@ import useUserStore from "../store/zutstand";
 import { crown } from "./Dies";
 import useWalletStore from "../store/walletStore";
 import { FaArrowLeft, FaLock } from "react-icons/fa";
+import { useGame } from "../context/GameContext";
 
 const GameDetails = ({ onClose, onGameStart }) => {
   const [step, setStep] = useState(1); // 1: stake, 2: pieces, 3: confirmation
@@ -14,6 +15,7 @@ const GameDetails = ({ onClose, onGameStart }) => {
   const setGameSetting = useUserStore((state) => state.setGameSetting);
   const [error, setError] = useState("");
   const [isLoading, setIsLoadign] = useState(false);
+  const { setGameState, setGameStatus } = useGame();
 
   setGameSetting({ stake: selectedStake, requiredPieces: selectedPieces });
 
@@ -63,6 +65,16 @@ const GameDetails = ({ onClose, onGameStart }) => {
       return;
     }
     setIsLoadign(true);
+
+    // Optionally, reset the game state as well
+    setGameState({
+      pieces: {
+        green: ["gh1", "gh2", "gh3", "gh4"],
+        blue: ["bh1", "bh2", "bh3", "bh4"],
+      },
+    });
+    setGameStatus("waiting"); // <-- reset status to prevent redirect
+
     socket.emit("create_room", {
       playerName: playerName.trim(),
       requiredPieces: selectedPieces,

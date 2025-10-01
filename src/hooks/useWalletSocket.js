@@ -47,13 +47,14 @@ const useWalletSocket = () => {
     const setupSocketListeners = () => {
       const user = getUser();
       console.log("Socket user:", user);
-      if (user?.id) {
-        console.log(`Setting up socket listeners for user: ${user.id}`);
+      const userId = user?.id || user?._id;
+      if (userId) {
+        console.log(`Setting up socket listeners for user: ${userId}`);
         // Listen for user-specific wallet updates
-        socket.on(`wallet_update_${user.id}`, handleWalletUpdate);
+        socket.on(`wallet_update_${userId}`, handleWalletUpdate);
 
         // Listen for user-specific notifications
-        socket.on(`notification_${user.id}`, handleNewNotification);
+        socket.on(`notification_${userId}`, handleNewNotification);
       } else {
         console.log("No user ID found, retrying in 1 second...");
         setTimeout(setupSocketListeners, 1000);
@@ -81,9 +82,10 @@ const useWalletSocket = () => {
     // Cleanup function
     return () => {
       const user = getUser();
-      if (user?.id) {
-        socket.off(`wallet_update_${user.id}`, handleWalletUpdate);
-        socket.off(`notification_${user.id}`, handleNewNotification);
+      const userId = user?.id || user?._id;
+      if (userId) {
+        socket.off(`wallet_update_${userId}`, handleWalletUpdate);
+        socket.off(`notification_${userId}`, handleNewNotification);
       }
       socket.off("wallet_balance", handleWalletUpdate);
       socket.off("transactions_list");

@@ -33,7 +33,7 @@ const PlayingPage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Game finished state
-  const [showGameFinished, setShowGameFinished] = useState(false);
+  // const [showGameFinished, setShowGameFinished] = useState(false);
 
   const {
     value,
@@ -112,20 +112,20 @@ const PlayingPage = () => {
   }, [gameSettings, isLoadingGameSettings]);
 
   // Debug: Log gameStatus changes
-  useEffect(() => {
-    console.log("🎮 PlayingPage - gameStatus changed:", gameStatus);
-    console.log("🎮 PlayingPage - players:", players);
-    console.log("🎮 PlayingPage - currentTurn:", currentTurn);
+  // useEffect(() => {
+  //   console.log("🎮 PlayingPage - gameStatus changed:", gameStatus);
+  //   console.log("🎮 PlayingPage - players:", players);
+  //   console.log("🎮 PlayingPage - currentTurn:", currentTurn);
 
-    // Redirect to lobby if game is finished
-    if (gameStatus === "finished") {
-      console.log("🎮 Game finished, redirecting to lobby...");
-      setShowGameFinished(true);
-      setTimeout(() => {
-        navigate("/game");
-      }, 5000); // Give user 5 seconds to see the result
-    }
-  }, [gameStatus, players, currentTurn, navigate]);
+  // Redirect to lobby if game is finished
+  //   if (gameStatus === "finished") {
+  //     console.log("🎮 Game finished, redirecting to lobby...");
+  //     setShowGameFinished(true);
+  //     setTimeout(() => {
+  //       navigate("/game");
+  //     }, 5000); // Give user 5 seconds to see the result
+  //   }
+  // }, [gameStatus, players, currentTurn, navigate]);
 
   // Fetch ads on component mount
   useEffect(() => {
@@ -604,32 +604,6 @@ const PlayingPage = () => {
       )}
 
       {/* Game Finished Overlay */}
-      {showGameFinished && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
-          <div className="bg-gray-900/90 border border-gray-600 rounded-2xl p-8 text-center shadow-2xl backdrop-blur-md max-w-md mx-4">
-            <div className="mb-6">
-              <h2 className="text-3xl font-bold text-white mb-4">
-                Game Finished!
-              </h2>
-              <p className="text-gray-300 text-lg">
-                The game has ended. You will be redirected to the lobby in a few
-                seconds.
-              </p>
-            </div>
-            <div className="flex justify-center space-x-1">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-              <div
-                className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
-                style={{ animationDelay: "0.1s" }}
-              ></div>
-              <div
-                className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
-                style={{ animationDelay: "0.2s" }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Leave Countdown Overlay */}
       {showLeaveCountdown && (
