@@ -19,6 +19,7 @@ const Profile = () => {
   const [recentTransactions, setRecentTransactions] = useState([]);
 
   const logout = useAuthStore((state) => state.logout);
+  const resetWallet = useWalletStore((state) => state.reset);
   const user = useAuthStore((state) => state.user);
   console.log(user);
 
@@ -84,6 +85,16 @@ const Profile = () => {
   function handleClick(type) {
     navigate(`/${type}`);
   }
+
+  const handleLogout = () => {
+    logout();
+    resetWallet();
+    localStorage.removeItem("wallet-storage");
+    localStorage.removeItem("current-user-id");
+    localStorage.removeItem("current-username");
+    // Remove any other user-related keys if needed
+    navigate("/login");
+  };
 
   return (
     <div className="h-full bg-gray-800 p-4">
@@ -258,10 +269,7 @@ const Profile = () => {
         <div className="w-full flex justify-center items-center ">
           <button
             className="w-full border-green-500 py-3 hover:bg-green-700 font-bold  rounded-xl text-xl text-white bg-gray-900 "
-            onClick={() => {
-              logout();
-              navigate("/login");
-            }}
+            onClick={handleLogout}
           >
             Logout
           </button>
