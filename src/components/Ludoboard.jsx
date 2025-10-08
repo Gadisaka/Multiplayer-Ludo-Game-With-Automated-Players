@@ -20,6 +20,7 @@ const LudoBoard = ({ roomId }) => {
     lastRoll,
     gameState: contextGameState,
     setGameState: setContextGameState,
+    isMyTurn,
   } = useGame();
   const setCurrentPlayerColor = useUserStore(
     (state) => state.setCurrentPlayerColor
@@ -81,7 +82,6 @@ const LudoBoard = ({ roomId }) => {
 
   // Helper to get the color of the current turn
   const currentTurnColor = players.find((p) => p.id === currentTurn)?.color;
-  const isMyTurn = socket.id === currentTurn;
 
   // Debug: Log socket.id, currentTurn, isMyTurn
   useEffect(() => {

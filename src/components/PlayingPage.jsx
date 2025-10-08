@@ -254,12 +254,18 @@ const PlayingPage = () => {
   useEffect(() => {
     const handleRoomDeleted = (data) => {
       console.log("Room deleted:", data);
-      navigate("/game");
+      console.log("Current game state when room deleted:", {
+        gameStatus,
+        players,
+        currentTurn,
+        roomId,
+      });
+      // Do NOT redirect automatically. Just log or show a message if you want.
     };
 
     const handleLeftRoom = (data) => {
       console.log("Left room:", data);
-      navigate("/game");
+      // Do NOT redirect automatically. Just log or show a message if you want.
     };
 
     const handlePlayerLeft = (data) => {
@@ -512,7 +518,7 @@ const PlayingPage = () => {
         <DieRollingPage
           value={value}
           isRolling={isRolling}
-          isMyTurn={socket.id === currentTurn}
+          isMyTurn={isMyTurn}
           gameStatus={gameStatus}
           onRoll={() => rollDice(roomId, socket)}
           players={players}

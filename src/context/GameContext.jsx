@@ -121,14 +121,12 @@ export const GameProvider = ({ children }) => {
     }
   };
 
-  // Handle turn changes (use stable currentTurnKey when available)
+  // Handle turn changes (use socket.id for consistency with backend)
   useEffect(() => {
-    if (currentTurn || currentTurnKey) {
-      const isMyTurnNow = currentTurnKey
-        ? currentUserId && currentTurnKey === currentUserId
-        : socket.id === currentTurn;
+    if (currentTurn) {
+      const isMyTurnNow = socket.id === currentTurn;
       console.log(
-        `[NEW_TIMER] Turn changed - isMyTurnNow: ${isMyTurnNow}, currentTurn: ${currentTurn}, currentTurnKey: ${currentTurnKey}, currentUserId: ${currentUserId}, socketId: ${socket.id}`
+        `[NEW_TIMER] Turn changed - isMyTurnNow: ${isMyTurnNow}, currentTurn: ${currentTurn}, socketId: ${socket.id}`
       );
 
       setIsMyTurn(isMyTurnNow);
@@ -164,7 +162,7 @@ export const GameProvider = ({ children }) => {
         stopTimer();
       }
     }
-  }, [currentTurn, currentTurnKey, currentUserId, gameStatus]);
+  }, [currentTurn, gameStatus]);
 
   // Cleanup timer on unmount
   useEffect(() => {
@@ -178,12 +176,7 @@ export const GameProvider = ({ children }) => {
   const rollDice = (roomId, socket) => {
     if (!roomId) return setError("You must be in a room to roll!");
     if (isRolling) return;
-    if (currentTurnKey) {
-      if (!currentUserId || currentUserId !== currentTurnKey)
-        return setError("Not your turn!");
-    } else {
-      if (socket.id !== currentTurn) return setError("Not your turn!");
-    }
+    if (socket.id !== currentTurn) return setError("Not your turn!");
     if (gameStatus !== "playing") return setError("Game hasn't started yet!");
 
     setIsRolling(true);
@@ -226,22 +219,41 @@ export const GameProvider = ({ children }) => {
   }, [currentRoomId, username]);
 
   useEffect(() => {
+    // CRITICAL: Debounce room_update events in GameContext as well
+    let gameContextRoomUpdateTimeout;
+
     socket.on("room_update", (data) => {
-      console.log("Room update received:", data);
-      setPlayers(data.players);
-      setCurrentTurn(data.currentTurn);
-      if (data.currentTurnKey) {
-        setCurrentTurnKey(data.currentTurnKey);
-        console.log(
-          `[GameContext] Received currentTurnKey: ${data.currentTurnKey}, currentUserId: ${currentUserId}`
-        );
+      console.log("Room update received in GameContext:", data);
+
+      // Clear previous timeout
+      if (gameContextRoomUpdateTimeout) {
+        clearTimeout(gameContextRoomUpdateTimeout);
       }
-      setGameStatus(data.gameStatus);
-      if (data.gameSettings) {
-        console.log("Updating game settings:", data.gameSettings);
-        setGameSettings(data.gameSettings);
-        setIsLoadingGameSettings(false);
-      }
+
+      // Debounce rapid room updates (especially during bot joining)
+      gameContextRoomUpdateTimeout = setTimeout(() => {
+        console.log("[GameContext] Processing debounced room_update:", {
+          players: data.players?.length || 0,
+          currentTurn: data.currentTurn,
+          gameStatus: data.gameStatus,
+          hasGameSettings: !!data.gameSettings,
+        });
+
+        setPlayers(data.players);
+        setCurrentTurn(data.currentTurn);
+        if (data.currentTurnKey) {
+          setCurrentTurnKey(data.currentTurnKey);
+          console.log(
+            `[GameContext] Received currentTurnKey: ${data.currentTurnKey}, currentUserId: ${currentUserId}`
+          );
+        }
+        setGameStatus(data.gameStatus);
+        if (data.gameSettings) {
+          console.log("Updating game settings:", data.gameSettings);
+          setGameSettings(data.gameSettings);
+          setIsLoadingGameSettings(false);
+        }
+      }, 50); // 50ms debounce to handle rapid bot join events
     });
 
     // Listen for fresh game data
@@ -364,6 +376,8 @@ export const GameProvider = ({ children }) => {
     resetTurnTimer,
     gameState,
     setGameState,
+    currentTurnKey,
+    setCurrentTurnKey,
   };
 
   return (

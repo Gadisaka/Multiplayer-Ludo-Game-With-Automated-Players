@@ -30,18 +30,35 @@ const useSocketEvents = (roomId) => {
       setError("Disconnected from server. Trying to reconnect...");
     });
 
+    // CRITICAL: Debounce room_update events to prevent rapid state changes
+    let roomUpdateTimeout;
     socket.on(
       "room_update",
       ({ players, currentTurn, gameStatus, lastRoll, gameSettings }) => {
-        setPlayers(players);
-        setCurrentTurn(currentTurn);
-        setGameStatus(gameStatus);
-        setLastRoll(lastRoll);
-        if (gameSettings) {
-          setGameSettings(gameSettings);
+        // Clear previous timeout
+        if (roomUpdateTimeout) {
+          clearTimeout(roomUpdateTimeout);
         }
-        setIsRolling(false);
-        setError("");
+
+        // Debounce rapid room updates (especially during bot joining)
+        roomUpdateTimeout = setTimeout(() => {
+          console.log("[useSocketEvents] Processing debounced room_update:", {
+            players: players?.length || 0,
+            currentTurn,
+            gameStatus,
+            hasGameSettings: !!gameSettings,
+          });
+
+          setPlayers(players);
+          setCurrentTurn(currentTurn);
+          setGameStatus(gameStatus);
+          setLastRoll(lastRoll);
+          if (gameSettings) {
+            setGameSettings(gameSettings);
+          }
+          setIsRolling(false);
+          setError("");
+        }, 50); // 50ms debounce to handle rapid bot join events
       }
     );
 
