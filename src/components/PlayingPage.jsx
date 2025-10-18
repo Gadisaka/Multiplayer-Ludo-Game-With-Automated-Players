@@ -4,6 +4,7 @@ import LudoBoard from "./Ludoboard";
 import socket from "../socket";
 import { useGame } from "../context/GameContext";
 import useSocketEvents from "../hooks/useSocketEvents";
+import useAccountDeactivation from "../hooks/useAccountDeactivation";
 import useAdsStore from "../store/adsStore";
 import bg from "../assets/Picsart_25-06-24_16-26-17-659.jpg";
 import { crown } from "./Dies";
@@ -16,6 +17,9 @@ import useAuthStore from "../store/authStore";
 const PlayingPage = () => {
   const { gameID: roomId } = useParams();
   const navigate = useNavigate();
+
+  // Set up account deactivation monitoring
+  useAccountDeactivation();
   // Timer state
   const [waitingTime, setWaitingTime] = useState(0);
   const timerRef = useRef(null);
@@ -215,6 +219,7 @@ const PlayingPage = () => {
             clearInterval(leaveTimerRef.current);
             setShowLeaveCountdown(false);
             handleLeaveRoom();
+            navigate("/game");
             return 0;
           }
           return prev - 1;
@@ -225,6 +230,7 @@ const PlayingPage = () => {
       console.log("   Current gameStatus:", gameStatus);
       // If game is waiting or not started, leave immediately
       handleLeaveRoom();
+      navigate("/game");
     }
   }
 
@@ -265,7 +271,7 @@ const PlayingPage = () => {
 
     const handleLeftRoom = (data) => {
       console.log("Left room:", data);
-      // Do NOT redirect automatically. Just log or show a message if you want.
+      // Redirect to the lobby or home page after leaving
     };
 
     const handlePlayerLeft = (data) => {
@@ -417,6 +423,8 @@ const PlayingPage = () => {
                   socket.emit("reconnect_to_room", {
                     roomId: roomId,
                     playerName: username || "unknown",
+                    preserveTurn: true, // Flag to preserve current turn
+                    currentTurn: currentTurn, // Send current turn to preserve it
                   });
                   socket.emit("getGameData", { gameId: roomId });
                 }, 1000);
@@ -427,6 +435,8 @@ const PlayingPage = () => {
                 socket.emit("reconnect_to_room", {
                   roomId: roomId,
                   playerName: username || "unknown",
+                  preserveTurn: true, // Flag to preserve current turn
+                  currentTurn: currentTurn, // Send current turn to preserve it
                 });
                 socket.emit("getGameData", { gameId: roomId });
               }

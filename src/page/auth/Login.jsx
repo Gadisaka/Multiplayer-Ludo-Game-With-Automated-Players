@@ -1,10 +1,11 @@
 // https://ludo-serverside.onrender.com
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import useAuthStore from "../../store/authStore";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, signup, loading, error, user } = useAuthStore();
   const [isSignup, setIsSignup] = useState(false);
   const [form, setForm] = useState({
@@ -15,6 +16,10 @@ const LoginPage = () => {
     role: "PLAYER",
   });
   const [formError, setFormError] = useState(null);
+
+  // Get message from location state (for deactivation redirects)
+  const redirectMessage = location.state?.message;
+  const messageType = location.state?.type;
 
   React.useEffect(() => {
     if (user) {
@@ -105,6 +110,43 @@ const LoginPage = () => {
                 : "Sign in to continue your journey"}
             </p>
           </div>
+
+          {/* Redirect Message (for deactivation) */}
+          {redirectMessage && (
+            <div
+              className={`p-4 rounded-xl border ${
+                messageType === "error"
+                  ? "bg-red-500/20 border-red-400/30 text-red-100"
+                  : "bg-blue-500/20 border-blue-400/30 text-blue-100"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <svg
+                  className="w-5 h-5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  {messageType === "error" ? (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    ></path>
+                  ) : (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    ></path>
+                  )}
+                </svg>
+                <span className="text-sm font-medium">{redirectMessage}</span>
+              </div>
+            </div>
+          )}
 
           {/* Form */}
           <form className="space-y-6" onSubmit={handleSubmit}>
