@@ -6,6 +6,7 @@ A real-time multiplayer Ludo game built with React and Vite. Play classic Ludo w
 
 - **Real-time Multiplayer Gameplay**: Play Ludo with 2 players using Socket.io for real-time synchronization
 - **User Authentication**: Secure login system with JWT token management
+- **Automated Players**: Bots which joins you and play along as human
 - **Wallet System**: Deposit and withdraw funds using Manual payment integration
 - **Game History**: Track all your past games and results
 - **Profile Management**: View and manage your profile, transactions, and game statistics
