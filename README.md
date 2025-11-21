@@ -1,6 +1,6 @@
 # Multiplayer-Ludo-Game
 
-A real-time multiplayer Ludo game built with React and Vite. Play classic Ludo with friends online, featuring wallet integration, game history tracking, and admin controls.
+A real-time multiplayer Ludo game built with React and Vite. Play classic Ludo with friends online, featuring wallet integration, game history tracking, and admin controls. Automated players will join the game if real player does not with in 30-50 seconds.
 
 ## 🎮 Features
 
