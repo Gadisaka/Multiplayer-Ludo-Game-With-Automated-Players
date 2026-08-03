@@ -658,7 +658,7 @@ const LudoBoard = ({ roomId }) => {
           return (
             <div
               key={playerId}
-              className="bg-yellow-500 text-white px-4 py-2 rounded-lg mb-2 shadow-lg animate-pulse"
+              className="bg-[rgba(6,20,16,0.92)] text-[#f6ead0] px-4 py-2.5 rounded-xl mb-2 shadow-lg border border-[rgba(240,193,75,0.45)] animate-fade-rise"
             >
               {data.isAutoMoving ? (
                 <div className="text-center">

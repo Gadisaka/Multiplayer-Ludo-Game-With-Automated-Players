@@ -10,9 +10,7 @@ const ProtectedLayout = () => {
 
   return (
     <WalletProvider>
-      <div className="min-h-screen w-full bg-gray-900 pb-16">
-        {" "}
-        {/* pb-16 for navbar space */}
+      <div className="min-h-screen w-full bg-[#061410] pb-20">
         <Outlet />
         <Navbar />
       </div>

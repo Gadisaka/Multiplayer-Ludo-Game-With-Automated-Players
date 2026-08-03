@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import "../../public/style.css";
 import { ludoBoxCoordinates } from "../constants/constants";
 import { paths } from "../logic/ludoPaths";
-import Slider from "@mui/material/Slider";
-
 function Token({
   position,
   color,
@@ -160,19 +158,25 @@ function Token({
       <div style={lightStyle()} />
       <div style={tokenStyle}>
         <div
-          className={` fa-solid text-[25px]
-        } fa-location-pin piece ${color}-piece`}
+          className={`fa-solid text-[25px] fa-location-pin piece ${color}-piece ${
+            isMovable ? "token-movable" : ""
+          }`}
           onClick={() => onClick(position)}
+          style={{
+            filter: isMovable
+              ? "drop-shadow(0 0 6px rgba(240,193,75,0.85))"
+              : "drop-shadow(0 2px 3px rgba(0,0,0,0.35))",
+          }}
         ></div>
         <div className="w-5 h-5 rounded-full absolute left-1/2 top-[-7px] transform -translate-x-1/2">
-          {/* Spinning Border Layer */}
           <div
-            className={`w-full h-full rounded-full  border-dashed border-gray-800 ${
-              isMovable ? "animate-spin border-2" : ""
+            className={`w-full h-full rounded-full border-dashed ${
+              isMovable
+                ? "animate-spin border-2 border-[#f0c14b]"
+                : "border-gray-800"
             }`}
           ></div>
-          {/* Static Inner Circle */}
-          <div className="w-4 h-4 rounded-full border-3 border-red-900 absolute left-1/2 top-[2px] transform -translate-x-1/2"></div>
+          <div className="w-4 h-4 rounded-full border-3 border-[#061410] absolute left-1/2 top-[2px] transform -translate-x-1/2"></div>
         </div>
       </div>
     </>

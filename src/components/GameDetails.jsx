@@ -5,9 +5,10 @@ import { crown } from "./Dies";
 import useWalletStore from "../store/walletStore";
 import { FaArrowLeft, FaLock } from "react-icons/fa";
 import { useGame } from "../context/GameContext";
+import { X } from "lucide-react";
 
 const GameDetails = ({ onClose, onGameStart }) => {
-  const [step, setStep] = useState(1); // 1: stake, 2: pieces, 3: confirmation
+  const [step, setStep] = useState(1);
   const [selectedStake, setSelectedStake] = useState(null);
   const [selectedPieces, setSelectedPieces] = useState(null);
   const [playerName, setPlayerName] = useState("");
@@ -21,7 +22,6 @@ const GameDetails = ({ onClose, onGameStart }) => {
 
   const stakeOptions = [20, 30, 40, 50, 100, 200, 500, 1000];
   const pieceOptions = [1, 2, 3, 4];
-  // const balance = 230.0;
   const { balance, getBalance } = useWalletStore();
 
   useEffect(() => {
@@ -37,7 +37,6 @@ const GameDetails = ({ onClose, onGameStart }) => {
   }, [username]);
 
   useEffect(() => {
-    // Listen for room creation response
     socket.on("room_created", ({ roomId }) => {
       onGameStart(roomId);
     });
@@ -61,19 +60,17 @@ const GameDetails = ({ onClose, onGameStart }) => {
     if (!playerName.trim()) {
       setError("Please enter your name");
       console.log(error);
-
       return;
     }
     setIsLoadign(true);
 
-    // Optionally, reset the game state as well
     setGameState({
       pieces: {
         green: ["gh1", "gh2", "gh3", "gh4"],
         blue: ["bh1", "bh2", "bh3", "bh4"],
       },
     });
-    setGameStatus("waiting"); // <-- reset status to prevent redirect
+    setGameStatus("waiting");
 
     socket.emit("create_room", {
       playerName: playerName.trim(),
@@ -82,134 +79,184 @@ const GameDetails = ({ onClose, onGameStart }) => {
     });
   };
 
+  const stepLabel =
+    step === 1 ? "Stake" : step === 2 ? "Pieces" : "Confirm";
+
   return (
-    <div className="fixed  left-0 right-0 text-yellow-500 pt-[1px] px-[1px] rounded-xl border border-transparent bg-gradient-to-r from-red-500 via-blue-500 to-purple-500 animate-gradient-x-border">
-      {step === 1 && (
-        <div className="space-y-4 bg-gray-700 p-4 rounded-xl flex flex-col justify-center items-center">
-          <div className="flex justify-between items-center w-full">
-            <h2 className="text-xl font-bold text-center">
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-[#061410]/65 backdrop-blur-sm p-3">
+      <div className="w-full max-w-md panel-arena overflow-hidden animate-result-burst shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
+        <div className="h-1 w-full bg-[linear-gradient(90deg,#0b8a3d_0%,#0b8a3d_33%,#f5d000_33%,#f5d000_66%,#d4212c_66%,#d4212c_100%)]" />
+
+        <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+          <div>
+            <p className="font-display text-[10px] uppercase tracking-[0.18em] text-[#f0c14b]/70">
+              Step {step}/3 · {stepLabel}
+            </p>
+            <div className="mt-2 flex gap-1.5">
+              {[1, 2, 3].map((s) => (
+                <span
+                  key={s}
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    s <= step ? "w-8 bg-[#f0c14b]" : "w-4 bg-[#f0c14b]/20"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="btn-arena-ghost p-2"
+            aria-label="Close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {step === 1 && (
+          <div className="space-y-4 p-4 animate-fade-rise">
+            <h2 className="font-display text-xl font-bold text-[#f6ead0]">
               Select Stake Amount
             </h2>
-            <button onClick={onClose}>X</button>
-          </div>
-          <div className="grid grid-cols-4 gap-3">
-            {stakeOptions.map((stake) => (
-              <button
-                key={stake}
-                disabled={stake > balance}
-                onClick={() => handleStakeSelect(stake)}
-                className={`p-3  flex flex-col justify-center items-center  rounded-lg hover:bg-gray-950 transition ${
-                  stake > balance ? "bg-gray-900/50" : "bg-gray-900"
-                } `}
-              >
-                {stake}
-                {stake > balance && (
-                  <h1 className="text-sm text-red-500">insufficient</h1>
-                )}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-col gap-2 w-full justify-center items-center">
-            <div className="flex gap-2 w-full justify-center items-center rounded-lg hover:bg-gray-540 transition">
-              <input
-                type="number"
-                placeholder="Enter amount"
-                onChange={(e) => setSelectedStake(Number(e.target.value))}
-                className="p-3 flex flex-col justify-center items-center bg-gray-900 rounded-lg hover:bg-gray-540 transition"
-              />
-              <button
-                onClick={() => handleStakeSelect(selectedStake)}
-                className={`p-3 flex flex-col justify-center items-center  rounded-lg hover:bg-gray-540 transition ${
-                  isLoading || selectedStake > balance || selectedStake < 20
-                    ? "bg-gray-900/50"
-                    : "bg-gray-900"
-                }`}
-                disabled={
-                  isLoading || selectedStake > balance || selectedStake < 20
-                }
-              >
-                Enter
-              </button>
-            </div>
-            {selectedStake && selectedStake < 20 && (
-              <p className="text-red-500 text-sm">Minimum bet is 20</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="space-y-4 bg-gray-700 p-4 rounded-xl py-16">
-          <div className="flex justify-between items-center w-full">
-            <h2 className="text-xl font-bold text-center">
-              Select Number of Pieces
-            </h2>
-            <button onClick={() => setStep(1)}>
-              <FaArrowLeft />
-            </button>
-          </div>
-          <div className="grid grid-cols-4 gap-3">
-            {pieceOptions.map((pieces) => {
-              const isLocked =
-                selectedStake < 500 && (pieces === 3 || pieces === 4);
-              return (
+            <div className="grid grid-cols-4 gap-2.5">
+              {stakeOptions.map((stake, i) => (
                 <button
-                  key={pieces}
-                  onClick={() => !isLocked && handlePiecesSelect(pieces)}
-                  disabled={isLocked}
-                  className={`p-3 flex flex-col justify-center items-center rounded-lg transition relative ${
-                    isLocked
-                      ? "bg-gray-900/50 cursor-not-allowed"
-                      : "bg-gray-900 hover:bg-gray-540"
+                  key={stake}
+                  disabled={stake > balance}
+                  onClick={() => handleStakeSelect(stake)}
+                  style={{ animationDelay: `${i * 0.04}s` }}
+                  className={`animate-stake-pop p-3 flex flex-col justify-center items-center rounded-xl font-display transition-all duration-200 ${
+                    stake > balance
+                      ? "bg-[#061410]/50 text-[#c9dfd3]/35 cursor-not-allowed"
+                      : "bg-[#061410]/70 text-[#f6ead0] border border-[rgba(240,193,75,0.2)] hover:border-[#f0c14b] hover:bg-[#f0c14b]/10 hover:scale-105"
                   }`}
                 >
-                  {isLocked && (
-                    <div className="absolute top-1 right-1">
-                      <FaLock className="text-red-500 text-xs" />
-                    </div>
-                  )}
-                  {crown}
-                  {pieces} ባነገሰ
-                  {isLocked && (
-                    <span className="text-xs text-red-500 mt-1 text-center">
-                      bet must be above 500
+                  {stake}
+                  {stake > balance && (
+                    <span className="text-[9px] text-[#ff8a8a] mt-0.5 leading-tight">
+                      insufficient
                     </span>
                   )}
                 </button>
-              );
-            })}
+              ))}
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  placeholder="Custom amount"
+                  onChange={(e) => setSelectedStake(Number(e.target.value))}
+                  className="flex-1 px-3 py-3 rounded-xl bg-[#061410]/70 border border-[rgba(240,193,75,0.2)] text-[#f6ead0] placeholder:text-[#c9dfd3]/40 outline-none focus:border-[#f0c14b] transition"
+                />
+                <button
+                  onClick={() => handleStakeSelect(selectedStake)}
+                  className="btn-arena px-4 py-2 text-sm"
+                  disabled={
+                    isLoading || selectedStake > balance || selectedStake < 20
+                  }
+                >
+                  Enter
+                </button>
+              </div>
+              {selectedStake && selectedStake < 20 && (
+                <p className="text-[#ff8a8a] text-sm">Minimum bet is 20</p>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {step === 3 && (
-        <div className="space-y-4 bg-gray-700 p-4 rounded-xl ">
-          <div className="space-x-2 text-center text-2xl gap-12 flex justify-center items-center">
-            <p className="">{selectedStake} ብር </p>
-            <span className="flex flex-col justify-center items-center ">
-              {crown}
-              {selectedPieces} ባነገሰ
-            </span>
+        {step === 2 && (
+          <div className="space-y-4 p-4 py-8 animate-fade-rise">
+            <div className="flex justify-between items-center">
+              <h2 className="font-display text-xl font-bold text-[#f6ead0]">
+                Select Number of Pieces
+              </h2>
+              <button
+                onClick={() => setStep(1)}
+                className="btn-arena-ghost p-2 text-[#f0c14b]"
+              >
+                <FaArrowLeft />
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-2.5">
+              {pieceOptions.map((pieces, i) => {
+                const isLocked =
+                  selectedStake < 500 && (pieces === 3 || pieces === 4);
+                return (
+                  <button
+                    key={pieces}
+                    onClick={() => !isLocked && handlePiecesSelect(pieces)}
+                    disabled={isLocked}
+                    style={{ animationDelay: `${i * 0.05}s` }}
+                    className={`animate-stake-pop p-3 flex flex-col justify-center items-center rounded-xl transition relative ${
+                      isLocked
+                        ? "bg-[#061410]/50 cursor-not-allowed text-[#c9dfd3]/40"
+                        : "bg-[#061410]/70 text-[#f6ead0] border border-[rgba(240,193,75,0.2)] hover:border-[#f0c14b] hover:scale-105"
+                    }`}
+                  >
+                    {isLocked && (
+                      <div className="absolute top-1.5 right-1.5">
+                        <FaLock className="text-[#d4212c] text-xs" />
+                      </div>
+                    )}
+                    {crown}
+                    <span className="font-display text-sm mt-1">
+                      {pieces} ባነገሰ
+                    </span>
+                    {isLocked && (
+                      <span className="text-[9px] text-[#ff8a8a] mt-1 text-center leading-tight">
+                        bet must be above 500
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleCreateGame}
-              disabled={isLoading}
-              className="px-4 py-1 text-white rounded-xl font-semibold 
-             bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 
-             bg-[length:300%_300%] animate-gradient-x transition-colors duration-300"
-            >
-              {isLoading ? "Creating..." : "Create Game"}
-            </button>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-5 p-5 animate-fade-rise">
+            <h2 className="font-display text-xl font-bold text-[#f6ead0] text-center">
+              Ready to create?
+            </h2>
+            <div className="flex justify-center items-center gap-8 py-4 rounded-2xl bg-[#061410]/55 border border-[rgba(240,193,75,0.18)]">
+              <div className="text-center">
+                <p className="text-[10px] uppercase tracking-wider text-[#c9dfd3]/55 font-display">
+                  Stake
+                </p>
+                <p className="font-display text-2xl font-bold text-[#f0c14b]">
+                  {selectedStake} ብር
+                </p>
+              </div>
+              <div className="w-px h-10 bg-[rgba(240,193,75,0.25)]" />
+              <div className="text-center flex flex-col items-center">
+                <p className="text-[10px] uppercase tracking-wider text-[#c9dfd3]/55 font-display mb-1">
+                  Pieces
+                </p>
+                {crown}
+                <p className="font-display text-lg font-bold text-[#f6ead0]">
+                  {selectedPieces} ባነገሰ
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={onClose}
+                className="btn-arena-ghost px-6 py-2.5 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateGame}
+                disabled={isLoading}
+                className="btn-arena px-6 py-2.5 text-sm animate-cta-breathe"
+              >
+                {isLoading ? "Creating…" : "Create Game"}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
