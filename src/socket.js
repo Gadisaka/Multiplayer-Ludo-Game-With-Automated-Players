@@ -17,13 +17,15 @@ if (persisted) {
 // console.log(token, "frgegre");
 // Get token from localStorage
 
+const isTest = import.meta.env.MODE === "test";
+
 const socket = io(API_URL, {
   reconnection: true,
   reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
   timeout: 20000,
-  autoConnect: true,
+  autoConnect: !isTest,
   transports: ["websocket", "polling"],
   auth: {
     token: token, // Include token in socket connection
@@ -86,7 +88,5 @@ socket.on("reconnect", (n) => {
 });
 socket.on("reconnect_error", (e) => console.log("reconnect_error", e?.message));
 socket.on("reconnect_failed", () => console.log("reconnect_failed"));
-
-// {"state":{"user":{"id":"c47f68f3-9ab4-4c10-975a-e1f9831b8382","phone":"7","username":"ronaldo","password":"$2b$10$X9F2HidwwxpxZFOrGdEOKuIT8AhnA9Wupkkjf0r4XARXZW4lDK9qe","role":"PLAYER","isActive":true,"createdAt":"2025-06-17T17:13:11.080Z","updatedAt":"2025-06-17T17:13:11.080Z"},"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImM0N2Y2OGYzLTlhYjQtNGMxMC05NzVhLWUxZjk4MzFiODM4MiIsInJvbGUiOiJQTEFZRVIiLCJ1c2VybmFtZSI6InJvbmFsZG8iLCJpYXQiOjE3NTIwOTIyNzAsImV4cCI6MTc1MjM1MTQ3MH0.ny9FDhgbTCy3kOS8BClvJIyjfl3fRxFhTfiwU4Bs1Lo","loading":false,"error":null},"version":0}
 
 export default socket;

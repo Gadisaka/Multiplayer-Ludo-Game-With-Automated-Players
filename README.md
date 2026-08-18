@@ -18,8 +18,8 @@ A real-time multiplayer Ludo game built with React and Vite. Play classic Ludo w
 
 ### Prerequisites
 
-- Node.js (v18 or higher recommended)
-- npm or yarn package manager
+- Node.js 20
+- npm package manager
 
 ### Installation
 
@@ -50,6 +50,7 @@ The application will be available at `http://localhost:3333`
 - `npm run build` - Build the project for production
 - `npm run preview` - Preview the production build
 - `npm run lint` - Run ESLint to check code quality
+- `npm test` - Run the offline Vitest suite (no live backend required)
 
 ## 🏗️ Project Structure
 

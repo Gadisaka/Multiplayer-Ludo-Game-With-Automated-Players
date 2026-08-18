@@ -6,7 +6,7 @@ import socket from "../socket.js";
 
 const useWalletStore = create(
   persist(
-    (set, get) => ({
+    (set) => ({
       balance: 0,
       transactions: [],
       notifications: [],
